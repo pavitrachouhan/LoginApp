@@ -22,6 +22,7 @@
 | **Environment** | `Node` |
 | **Region** | Select closest to your location |
 | **Branch** | `main` |
+| **Root Directory** | `backend` (important if monorepo!) |
 | **Build Command** | `npm install` |
 | **Start Command** | `npm start` |
 

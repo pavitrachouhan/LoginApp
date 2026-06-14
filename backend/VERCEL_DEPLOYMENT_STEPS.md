@@ -1,7 +1,8 @@
 # Vercel Deployment Guide - Step by Step
 
 ## Prerequisites
-- Your frontend code (React, Next.js, or similar) in a GitHub repository
+- Frontend code (React + Vite) in a GitHub repository
+- Backend API deployed on Render
 - Environment variable for backend API URL
 
 ---
@@ -18,31 +19,30 @@
 
 ### 2.1 Import GitHub Repository
 1. In Vercel dashboard, click **"Add New..."** → **"Project"**
-2. Search for your frontend repo
+2. Search for your repo: `LoginApp`
 3. Click **"Import"**
 
 ### 2.2 Configure Project
-1. **Project Name:** (auto-filled from repo)
-2. **Framework Preset:** Auto-detected (React, Next.js, etc.)
-3. **Root Directory:** Leave as `.` (or `/frontend` if frontend is in subfolder)
+1. **Project Name:** `employee-management-system`
+2. **Framework Preset:** Select **"Vite"**
+3. **Root Directory:** Select `/frontend` (important!)
+4. **Build Command:** `npm run build` (should auto-detect)
+5. **Output Directory:** `dist` (should auto-detect)
 
 ### 2.3 Add Environment Variables
-Scroll down to **"Environment Variables"**:
+Scroll down to **"Environment Variables"** and add:
 
 ```
-REACT_APP_API_URL=https://employee-management-system-api.onrender.com/api/v1
+VITE_API_URL=https://employee-management-system-api.onrender.com/api/v1
 ```
 
-Or if using Next.js:
-```
-NEXT_PUBLIC_API_URL=https://employee-management-system-api.onrender.com/api/v1
-```
+**IMPORTANT:** Vite uses `VITE_` prefix for public environment variables, not `REACT_APP_`
 
 ### 2.4 Deploy
 1. Click **"Deploy"**
-2. Wait for deployment (2-5 minutes)
-3. Once complete, you'll see a green deployment status
-4. Copy your frontend URL (looks like: `https://employee-management-system.vercel.app`)
+2. Wait for deployment (3-5 minutes)
+3. Once complete, you'll see a green "Ready" status
+4. Copy your frontend URL: `https://employee-management-system.vercel.app`
 
 ---
 
@@ -50,32 +50,46 @@ NEXT_PUBLIC_API_URL=https://employee-management-system-api.onrender.com/api/v1
 
 In your frontend code, make sure API calls use the environment variable:
 
-### Example (React with fetch):
-```javascript
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+### For Vite React (Your App):
 
-// Make API call
-fetch(`${API_URL}/auth/login`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username, password })
-})
-```
-
-### Example (Next.js):
-```javascript
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-```
-
-### Example (Axios):
+**File: `src/api.js` or `src/services/api.js`**
 ```javascript
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1'
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Add token to requests if logged in
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export default apiClient;
+```
+
+**File: `src/components/Login.jsx` (or similar)**
+```javascript
+import apiClient from '../api';
+
+const handleLogin = async (username, password) => {
+  try {
+    const response = await apiClient.post('/auth/login', { username, password });
+    localStorage.setItem('token', response.data.token);
+    // Redirect to dashboard
+  } catch (error) {
+    console.error('Login failed:', error);
+  }
+};
 ```
 
 ---
@@ -88,21 +102,60 @@ Navigate to:
 https://employee-management-system.vercel.app
 ```
 
-### 4.2 Test Login Flow
+### 4.2 Check Deployment Logs
+1. Go to Vercel dashboard → Your Project → **Deployments**
+2. Click on latest deployment
+3. Check **"Build Logs"** and **"Runtime Logs"** for errors
+4. Look for build errors or environment variable issues
+
+### 4.3 Test Login Flow
 1. Go to login page
-2. Try logging in with test credentials
+2. Try logging in with test credentials (e.g., username: `admin`, password: `admin123`)
 3. Check if the request hits your backend API
 
-### 4.3 Check Network Tab (Browser DevTools)
-1. Open your frontend URL
+### 4.4 Check Network Tab (Browser DevTools)
+1. Open your frontend URL: `https://employee-management-system.vercel.app`
 2. Press `F12` → **Network** tab
 3. Try login
 4. Look for requests to your Render backend URL
 5. Verify they return 200 status
+6. Check **Console** tab for any JavaScript errors
 
 ---
 
-## Step 5: Record Your URLs
+## Step 5: Troubleshoot Common Vercel Issues
+
+### Issue: "Build failed"
+**Solution:**
+1. Check **Build Logs** in Vercel dashboard
+2. Ensure Root Directory is set to `/frontend`
+3. Verify all dependencies are in `package.json`
+4. Run locally: `npm install && npm run build`
+
+### Issue: "Blank white page or 404"
+**Solution:**
+1. Check if environment variable `VITE_API_URL` is set correctly
+2. Check browser Console tab for errors
+3. Verify the build output exists
+4. Try redeploy: click **Redeploy** in Vercel dashboard
+
+### Issue: "API calls failing / CORS errors"
+**Solution:**
+1. Verify `VITE_API_URL` matches your backend URL exactly
+2. Check backend CORS is enabled: `app.use(cors());` in `server.js`
+3. Check Network tab to see actual request URL
+4. If URL is localhost, env var didn't load - redeploy
+
+### Issue: "Environment variables not working"
+**Solution:**
+1. Go to Vercel → Project Settings → **Environment Variables**
+2. Delete and re-add `VITE_API_URL`
+3. Click **Redeploy** to trigger rebuild
+4. Wait 5 minutes for new deployment
+
+---
+
+## Step 6: Record Your URLs
 
 Save these for submission:
 
@@ -114,19 +167,7 @@ Save these for submission:
 
 ---
 
-## Common Issues & Fixes
 
-### Issue: "Build Failed"
-- **Cause:** Missing dependencies or build script error
-- **Fix:** Check `package.json` has all dependencies, run `npm install` locally first
-
-### Issue: "API calls returning 404 or CORS errors"
-- **Cause:** Backend API URL is wrong or CORS not enabled
-- **Fix:** Check `REACT_APP_API_URL` env var matches your Render URL exactly
-
-### Issue: "Environment variables not loading"
-- **Cause:** Redeployment needed after adding env vars
-- **Fix:** Go to **Deployments** → click on latest → **Redeploy**
 
 ---
 
@@ -142,9 +183,22 @@ Or simply push to GitHub and Vercel will auto-redeploy.
 
 ---
 
+## Redeployment Steps (If You Update Frontend)
+
+1. Push changes to GitHub: `git push origin main`
+2. Vercel auto-deploys on GitHub push
+3. OR manually redeploy in Vercel dashboard:
+   - Click **Deployments** → Latest deployment → **Redeploy**
+4. Wait 3-5 minutes for new deployment
+5. Clear browser cache: `Ctrl+Shift+Delete` (Windows) or `Cmd+Shift+Delete` (Mac)
+6. Test the app
+
+---
+
 ## Done! 🎉
 
-Your full-stack application is now live:
-- **Frontend:** Vercel
-- **Backend:** Render
+Your full-stack Employee Management System is now live:
+- **Frontend:** https://employee-management-system.vercel.app
+- **Backend:** https://employee-management-system-api.onrender.com/api/v1
 - **Database:** Render PostgreSQL
+- **API Docs:** https://employee-management-system-api.onrender.com/api/docs
