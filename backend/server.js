@@ -35,6 +35,21 @@ app.get("/", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+// Health check route defined before main routes
+app.get("/api/v1/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: "Database connection failed" });
+  }
+});
+
 app.use("/api/v1", apiV1Routes);
 app.use("/api/v2", apiV1Routes);
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
