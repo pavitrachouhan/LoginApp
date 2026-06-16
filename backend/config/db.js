@@ -12,4 +12,13 @@ const pool = new Pool({
   },
 });
 
+pool.connect()
+  .then(() => {
+    console.log("✅ PostgreSQL Connected");
+  })
+  .catch((err) => {
+    console.error("❌ PostgreSQL Connection Error:");
+    console.error(err);
+  });
+
 module.exports = pool;
