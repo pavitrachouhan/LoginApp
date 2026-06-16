@@ -1,6 +1,4 @@
-const dotenv = require("dotenv");
-dotenv.config();
-
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -29,6 +27,7 @@ app.get("/api/v1/health", async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Health Check DB Error:", error.message);
     res.status(500).json({ status: "error", message: "Database connection failed" });
   }
 });
@@ -37,13 +36,14 @@ app.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
     res.json({
-      message: "Database Connected",
+      message: "API is live and Database is Connected",
       time: result.rows[0],
     });
   } catch (error) {
-    console.error(error);
+    logger.error("Database Connection Error:", error);
     res.status(500).json({
       message: "Database Connection Failed",
+      error: error.message
     });
   }
 });
